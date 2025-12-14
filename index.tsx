@@ -46,6 +46,7 @@ const CheckIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24"
 const TrashIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const ChevronDownIcon = () => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>;
 const ChevronRightIcon = () => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>;
+const EyeIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
 
 // File Types Icons
 const JsIcon = () => <svg className="w-4 h-4 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>;
@@ -68,8 +69,18 @@ function App() {
   const [activeTab, setActiveTab] = useState<'code' | 'testing' | 'security'>('code');
   const [copyFeedback, setCopyFeedback] = useState(false);
   
+  // Local content state for editing
+  const [localContent, setLocalContent] = useState("");
+
   // File explorer collapsing state
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Sync local content when file selection changes
+  useEffect(() => {
+    if (selectedFile && selectedFile.type === 'text') {
+        setLocalContent(selectedFile.content);
+    }
+  }, [selectedFile]);
 
   const generateExtension = async () => {
     if (!prompt.trim()) return;
@@ -86,6 +97,7 @@ function App() {
     setResult(null);
     setSelectedFile(null);
     setCollapsedGroups({}); // Reset collapse state
+    setLocalContent("");
 
     // Simulation of progress steps
     const steps = [
@@ -183,8 +195,8 @@ function App() {
   };
 
   const handleCopyCode = () => {
-    if (selectedFile?.content) {
-      navigator.clipboard.writeText(selectedFile.content);
+    if (selectedFile?.type === 'text') {
+      navigator.clipboard.writeText(localContent); // Copy edited content
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 2000);
     }
@@ -192,6 +204,17 @@ function App() {
 
   const handleClearPrompt = () => {
     setPrompt("");
+  };
+
+  const handleContentChange = (newContent: string) => {
+    setLocalContent(newContent);
+    // Update the file in the result structure so previews and download use new content
+    if (result && selectedFile) {
+        const updatedFiles = result.files.map((f: any) => 
+            f.path === selectedFile.path ? { ...f, content: newContent } : f
+        );
+        setResult({ ...result, files: updatedFiles });
+    }
   };
 
   const getFileIcon = (filename: string) => {
@@ -249,6 +272,11 @@ function App() {
   let complexityText = "Simple";
   if (promptLength > 50) { complexityColor = "bg-blue-500"; complexityText = "Detailed"; }
   if (promptLength > 150) { complexityColor = "bg-purple-500"; complexityText = "Complex"; }
+
+  // Check if preview is available
+  const isHtml = selectedFile?.path.endsWith('.html');
+  const isCss = selectedFile?.path.endsWith('.css');
+  const showPreview = (isHtml || isCss) && selectedFile?.type === 'text';
 
   return (
     <div className="h-screen w-full bg-[#111827] text-slate-300 flex overflow-hidden font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -496,15 +524,20 @@ function App() {
                 
                 {/* CODE VIEW */}
                 {activeTab === 'code' && selectedFile && (
-                   <div className="min-h-full flex flex-col">
+                   <div className="min-h-full flex flex-col h-full">
                       {/* Breadcrumb / File Info */}
-                      <div className="sticky top-0 z-10 bg-[#111827]/95 backdrop-blur border-b border-white/5 px-6 py-3 flex items-center justify-between shadow-sm">
+                      <div className="sticky top-0 z-10 bg-[#111827]/95 backdrop-blur border-b border-white/5 px-6 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
                         <div className="flex items-center gap-2 text-sm text-slate-300 font-mono">
                           <span className="text-slate-600">extension/</span>
                           <span className="text-indigo-400">{selectedFile.path}</span>
                         </div>
                         
                         <div className="flex items-center gap-3">
+                            {showPreview && (
+                                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold uppercase tracking-wider border border-emerald-500/20">
+                                    <EyeIcon /> Live Preview
+                                </span>
+                            )}
                             {selectedFile.type === 'text' && (
                                 <button
                                     onClick={handleCopyCode}
@@ -522,15 +555,37 @@ function App() {
                         </div>
                       </div>
                       
-                      {/* Editor Content */}
-                      <div className="p-6">
+                      {/* Editor Content + Preview Split */}
+                      <div className="flex-grow flex overflow-hidden">
                         {selectedFile.type === 'text' ? (
-                           <pre className="font-mono text-[13px] leading-relaxed text-slate-300 tab-4">
-                             {/* Simple highlighting simulation by classname wrapping is tricky without a library, sticking to clean mono */}
-                             {selectedFile.content}
-                           </pre>
+                           <>
+                             {/* Code Editor */}
+                             <div className={`${showPreview ? 'w-1/2 border-r border-white/10' : 'w-full'} h-full flex flex-col`}>
+                                 <textarea 
+                                    value={localContent}
+                                    onChange={(e) => handleContentChange(e.target.value)}
+                                    className="flex-grow w-full h-full bg-[#111827] p-6 font-mono text-[13px] leading-relaxed text-slate-300 resize-none focus:outline-none custom-scrollbar"
+                                    spellCheck={false}
+                                 />
+                             </div>
+
+                             {/* Live Preview Pane */}
+                             {showPreview && (
+                                 <div className="w-1/2 h-full bg-[#ffffff] relative">
+                                    <div className="absolute top-0 left-0 bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-br z-10 border-b border-r border-slate-200">
+                                        Browser Preview
+                                    </div>
+                                    <iframe 
+                                        className="w-full h-full border-none"
+                                        title="Preview"
+                                        sandbox="allow-same-origin"
+                                        srcDoc={constructPreview(selectedFile, localContent, result.files)}
+                                    />
+                                 </div>
+                             )}
+                           </>
                         ) : (
-                          <div className="flex flex-col items-center justify-center py-20 gap-6">
+                          <div className="w-full flex flex-col items-center justify-center py-20 gap-6 overflow-auto">
                              <div className="relative group">
                                 <div className="absolute -inset-4 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition duration-700"></div>
                                 <div className="relative p-8 bg-white/5 border border-white/10 rounded-xl">
@@ -550,7 +605,17 @@ function App() {
                 {/* GUIDES VIEW */}
                 {(activeTab === 'testing' || activeTab === 'security') && (
                   <div className="max-w-3xl mx-auto p-12">
-                     <div className="prose prose-invert prose-slate prose-headings:font-medium prose-headings:text-indigo-100 prose-p:text-slate-400 prose-p:mb-6 prose-p:leading-relaxed prose-li:mb-2 prose-pre:bg-[#1f2937] prose-pre:border prose-pre:border-white/10 prose-strong:text-slate-200">
+                     <div className="prose prose-invert prose-slate 
+                        [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-6 [&_h1]:text-indigo-100 
+                        [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-indigo-200 
+                        [&_h3]:text-lg [&_h3]:font-medium [&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-indigo-300
+                        [&_p]:mb-6 [&_p]:leading-7 [&_p]:text-slate-300
+                        [&_ul]:mb-6 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2
+                        [&_li]:mb-2 [&_li]:leading-relaxed
+                        [&_strong]:font-semibold [&_strong]:text-slate-100
+                        [&_code]:bg-[#1f2937] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-indigo-300 [&_code]:font-mono [&_code]:text-sm
+                        [&_pre]:bg-[#1f2937] [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-white/10 [&_pre]:overflow-x-auto [&_pre]:mb-6
+                     ">
                         <Markdown>{activeTab === 'testing' ? result.testing_guide : result.security_review}</Markdown>
                      </div>
                   </div>
@@ -581,6 +646,61 @@ function TabButton({ active, onClick, label, icon }: { active: boolean, onClick:
       {active && <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>}
     </button>
   );
+}
+
+// Logic to construct preview HTML with injected CSS
+function constructPreview(currentFile: any, currentContent: string, allFiles: any[]) {
+    if (!currentFile) return "";
+    
+    let htmlContent = "";
+    let cssContentToInject = "";
+
+    // Case 1: Previewing HTML
+    if (currentFile.path.endsWith('.html')) {
+        htmlContent = currentContent;
+    } 
+    // Case 2: Previewing CSS - find a relevant HTML file
+    else if (currentFile.path.endsWith('.css')) {
+        // Find popup.html or options.html or just the first html file
+        const htmlFile = allFiles.find(f => f.path.endsWith('popup.html')) 
+                      || allFiles.find(f => f.path.endsWith('.html'));
+        
+        if (htmlFile) {
+            htmlContent = htmlFile.content;
+            cssContentToInject = currentContent; // The CSS we are currently editing
+        } else {
+            return "<html><body><p style='padding: 20px; font-family: sans-serif;'>No HTML file found to preview this CSS.</p></body></html>";
+        }
+    } else {
+        return "";
+    }
+
+    // Inject styles
+    // 1. If we are editing CSS, we want to replace the link tag that points to THIS css file with our live content.
+    // 2. For other link tags, we want to find their content in allFiles and inject it.
+
+    // Regex to find <link rel="stylesheet" href="...">
+    const linkTagRegex = /<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+
+    const replacedHtml = htmlContent.replace(linkTagRegex, (match, href) => {
+        // Clean up href (remove ./ etc) to match file paths if needed, though usually simple in this generator
+        const cssFileName = href.split('/').pop(); 
+        
+        // If we are currently editing this CSS file
+        if (currentFile.path.endsWith(cssFileName) || (currentFile.path.endsWith('.css') && currentFile.path.includes(cssFileName))) {
+             return `<style>${currentContent}</style>`;
+        }
+        
+        // Otherwise look it up in files
+        const linkedFile = allFiles.find(f => f.path.endsWith(cssFileName));
+        if (linkedFile) {
+            return `<style>${linkedFile.content}</style>`;
+        }
+        
+        return match; // Keep original if not found (though it won't load in iframe usually)
+    });
+
+    return replacedHtml;
 }
 
 async function generateIconBlob(description: string): Promise<Blob | null> {
