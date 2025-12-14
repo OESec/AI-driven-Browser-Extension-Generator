@@ -814,8 +814,9 @@ function App() {
       </div>
 
       {/* FEEDBACK PANEL */}
-      <div className={`w-80 flex-shrink-0 border-l transition-colors duration-300 flex flex-col z-10 shadow-[-5px_0_20px_-5px_rgba(0,0,0,0.1)]
-         dark:border-white/10 dark:bg-[#141a29] bg-white border-gray-200`}>
+      <div className={`w-80 flex-shrink-0 border-l transition-colors duration-300 flex flex-col z-10
+         dark:border-white/10 dark:bg-[#1f2937] bg-white border-gray-200
+         shadow-[-10px_0_30px_-10px_rgba(0,0,0,0.1)] dark:shadow-[-10px_0_30px_-10px_rgba(0,0,0,0.3)]`}>
          <div className="p-6 border-b dark:border-white/5 border-gray-100">
              <div className="flex items-center gap-2 mb-2">
                 <span className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg></span>
