@@ -81,10 +81,8 @@ function App() {
   const [isDark, setIsDark] = useState(true);
   
   // Feedback State
-  const [feedbackEmail, setFeedbackEmail] = useState("");
-  const [feedbackText, setFeedbackText] = useState("");
-  const [feedbackSentiment, setFeedbackSentiment] = useState<'happy' | 'sad' | null>(null);
-  const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [likes, setLikes] = useState(() => parseInt(localStorage.getItem('extGen_likes') || '0'));
+  const [dislikes, setDislikes] = useState(() => parseInt(localStorage.getItem('extGen_dislikes') || '0'));
 
   // Local content state for editing (both text and icon description strings)
   const [localContent, setLocalContent] = useState("");
@@ -269,29 +267,16 @@ function App() {
     }
   };
   
-  const handleSendFeedback = () => {
-     if (!feedbackEmail || !feedbackText || !feedbackSentiment) {
-         alert("Please complete all feedback fields.");
-         return;
-     }
-     setFeedbackStatus('sending');
-     
-     // Construct Mailto
-     const subject = `ExtensionGen Feedback (${feedbackSentiment === 'happy' ? 'Positive' : 'Negative'})`;
-     const body = `From: ${feedbackEmail}\n\n${feedbackText}`;
-     const mailtoLink = `mailto:pam33na@yahoo.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-     
-     // Trigger simulated send and actual mailto
-     setTimeout(() => {
-        window.location.href = mailtoLink;
-        setFeedbackStatus('sent');
-        setTimeout(() => {
-            setFeedbackStatus('idle');
-            setFeedbackEmail("");
-            setFeedbackText("");
-            setFeedbackSentiment(null);
-        }, 3000);
-     }, 800);
+  const handleVote = (type: 'like' | 'dislike') => {
+        if (type === 'like') {
+            const newCount = likes + 1;
+            setLikes(newCount);
+            localStorage.setItem('extGen_likes', newCount.toString());
+        } else {
+            const newCount = dislikes + 1;
+            setDislikes(newCount);
+            localStorage.setItem('extGen_dislikes', newCount.toString());
+        }
   };
 
   const getFileIcon = (filename: string) => {
@@ -829,95 +814,49 @@ function App() {
       </div>
 
       {/* FEEDBACK PANEL */}
-      <div className={`w-80 flex-shrink-0 border-l transition-colors duration-300 flex flex-col
-         dark:border-white/5 dark:bg-[#111827] bg-white border-gray-200`}>
+      <div className={`w-80 flex-shrink-0 border-l transition-colors duration-300 flex flex-col z-10 shadow-[-5px_0_20px_-5px_rgba(0,0,0,0.1)]
+         dark:border-white/10 dark:bg-[#141a29] bg-white border-gray-200`}>
          <div className="p-6 border-b dark:border-white/5 border-gray-100">
              <div className="flex items-center gap-2 mb-2">
                 <span className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg></span>
                 <h2 className="text-lg font-bold dark:text-white text-slate-800">Feedback</h2>
              </div>
-             <p className="text-xs text-slate-500 leading-relaxed">We value your input! Help us improve the Extension Generator.</p>
+             <p className="text-xs text-slate-500 leading-relaxed">Rate your experience with ExtensionGen.</p>
          </div>
          
-         <div className="p-6 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar">
-            {/* Email Input */}
-            <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-slate-500">Your Email</label>
-                <input 
-                    type="email"
-                    value={feedbackEmail}
-                    onChange={(e) => setFeedbackEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border focus:ring-2 focus:ring-indigo-500/20
-                    dark:bg-[#1a202c] dark:border-white/10 dark:text-slate-200 dark:focus:border-indigo-500/50 dark:placeholder-slate-600
-                    bg-gray-50 border-gray-200 text-slate-800 focus:border-indigo-500 placeholder-slate-400"
-                />
+         <div className="p-6 flex flex-col gap-4 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="grid grid-cols-2 gap-3 h-full max-h-40">
+                <button
+                    onClick={() => handleVote('like')}
+                    className="p-4 rounded-xl border flex flex-col items-center justify-center gap-3 transition-all duration-200
+                    dark:bg-[#1a202c] dark:border-white/5 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-emerald-400 dark:active:bg-emerald-500/10
+                    bg-gray-50 border-gray-200 text-slate-500 hover:bg-white hover:border-emerald-200 hover:text-emerald-500 hover:shadow-sm active:scale-95"
+                >
+                    <SmileIcon />
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs font-bold uppercase tracking-wider">Good</span>
+                        <span className="text-lg font-mono font-bold text-emerald-500">{likes}</span>
+                    </div>
+                </button>
+                <button
+                    onClick={() => handleVote('dislike')}
+                    className="p-4 rounded-xl border flex flex-col items-center justify-center gap-3 transition-all duration-200
+                    dark:bg-[#1a202c] dark:border-white/5 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-rose-400 dark:active:bg-rose-500/10
+                    bg-gray-50 border-gray-200 text-slate-500 hover:bg-white hover:border-rose-200 hover:text-rose-500 hover:shadow-sm active:scale-95"
+                >
+                    <SadIcon />
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs font-bold uppercase tracking-wider">Bad</span>
+                        <span className="text-lg font-mono font-bold text-rose-500">{dislikes}</span>
+                    </div>
+                </button>
             </div>
-
-            {/* Message Input */}
-            <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-slate-500">Message</label>
-                <textarea 
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="Tell us what you think..."
-                    className="w-full h-32 px-4 py-3 rounded-lg text-sm resize-none transition-all outline-none border focus:ring-2 focus:ring-indigo-500/20
-                    dark:bg-[#1a202c] dark:border-white/10 dark:text-slate-200 dark:focus:border-indigo-500/50 dark:placeholder-slate-600
-                    bg-gray-50 border-gray-200 text-slate-800 focus:border-indigo-500 placeholder-slate-400"
-                />
+            
+            <div className="mt-auto p-4 rounded-lg bg-indigo-500/5 border border-indigo-500/10 text-center">
+                <p className="text-xs text-indigo-500 dark:text-indigo-400">
+                    Your feedback helps us improve the AI model accuracy.
+                </p>
             </div>
-
-            {/* Sentiment */}
-            <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-400 text-slate-500">Experience</label>
-                <div className="grid grid-cols-2 gap-3">
-                    <button 
-                        onClick={() => setFeedbackSentiment('happy')}
-                        className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all duration-200 ${
-                            feedbackSentiment === 'happy'
-                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500 ring-1 ring-emerald-500/50'
-                            : 'dark:bg-[#1a202c] dark:border-white/5 dark:text-slate-500 dark:hover:bg-white/5 bg-gray-50 border-gray-200 text-slate-400 hover:bg-gray-100 hover:text-slate-600'
-                        }`}
-                    >
-                        <SmileIcon />
-                        <span className="text-xs font-bold">Good</span>
-                    </button>
-                    <button 
-                        onClick={() => setFeedbackSentiment('sad')}
-                        className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all duration-200 ${
-                            feedbackSentiment === 'sad'
-                            ? 'bg-rose-500/10 border-rose-500/50 text-rose-500 ring-1 ring-rose-500/50'
-                            : 'dark:bg-[#1a202c] dark:border-white/5 dark:text-slate-500 dark:hover:bg-white/5 bg-gray-50 border-gray-200 text-slate-400 hover:bg-gray-100 hover:text-slate-600'
-                        }`}
-                    >
-                        <SadIcon />
-                        <span className="text-xs font-bold">Bad</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Submit */}
-            <button
-                onClick={handleSendFeedback}
-                disabled={feedbackStatus !== 'idle'}
-                className={`w-full py-3.5 rounded-lg font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all
-                    ${feedbackStatus === 'sent' 
-                        ? 'bg-emerald-500 text-white' 
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/25 active:scale-[0.98]'
-                    }
-                    ${feedbackStatus === 'sending' ? 'opacity-70 cursor-wait' : ''}
-                `}
-            >
-                {feedbackStatus === 'idle' && (
-                    <>Send Feedback <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></>
-                )}
-                {feedbackStatus === 'sending' && (
-                    <>Sending...</>
-                )}
-                {feedbackStatus === 'sent' && (
-                    <>Sent! <CheckIcon /></>
-                )}
-            </button>
          </div>
       </div>
     </div>
